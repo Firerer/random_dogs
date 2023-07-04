@@ -25,7 +25,7 @@ async function fetchOnce(): Promise<{ link: string; type: string } | null> {
   }
 }
 
-async function fetchLink(retry = 3): ReturnType<typeof fetchOnce> {
+async function fetchRetry(retry = 3): ReturnType<typeof fetchOnce> {
   for (let i = 0; i < retry; i++) {
     const result = await fetchOnce();
     if (result) {
@@ -35,18 +35,7 @@ async function fetchLink(retry = 3): ReturnType<typeof fetchOnce> {
   return null;
 }
 
-function Image() {
-  const [url, setUrl] = useState<string>();
-
-  useEffect(() => {
-    fetchLink()
-      .then((result) => {
-        console.log(url);
-        if (result) setUrl(result.link);
-      })
-      .catch((e) => console.error(e));
-  }, []);
-
+function Image({ url }: { url: string | null }) {
   if (url) {
     return <embed src={url} />;
   } else {
@@ -55,12 +44,33 @@ function Image() {
 }
 
 function App() {
+  const [urls, setUrls] = useState<(string | null)[]>(new Array(8).fill(null));
+
+  const fetchData = async () => {
+    for (let i = 0; i < 8; i++) {
+      fetchRetry().then((result) => {
+        if (result) {
+          setUrls((v) =>
+            v.map((orignal, j) => (i == j ? result.link : orignal)),
+          );
+        }
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   return (
-    <div>
-      {new Array(8).fill(0).map((_, i) => (
-        <Image key={i} />
-      ))}
-    </div>
+    <>
+      <button onClick={() => fetchData()}>Reload</button>
+      <div className="waterfall-container">
+        {urls.map((url, i) => (
+          <Image url={url} key={i} />
+        ))}
+      </div>
+    </>
   );
 }
 

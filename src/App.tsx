@@ -1,35 +1,67 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+type DogLinkResponse = {
+  fileSizeBytes: number;
+  url: string;
+};
 
-  return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+async function fetchOnce(): Promise<{ link: string; type: string } | null> {
+  const response = await fetch("https://random.dog/woof.json");
+  const data = (await response.json()) as DogLinkResponse;
+  const matches = data.url.match(/(?!\.)\w+$/);
+  if (matches && matches.length == 1) {
+    switch (matches[0].toLowerCase()) {
+      case "jpg":
+      case "png":
+      case "gif":
+      case "mp4":
+        return { link: data.url, type: matches[0] };
+      default:
+        return null;
+    }
+  } else {
+    return null;
+  }
 }
 
-export default App
+async function fetchLink(retry = 3): ReturnType<typeof fetchOnce> {
+  for (let i = 0; i < retry; i++) {
+    const result = await fetchOnce();
+    if (result) {
+      return result;
+    }
+  }
+  return null;
+}
+
+function Image() {
+  const [url, setUrl] = useState<string>();
+
+  useEffect(() => {
+    fetchLink()
+      .then((result) => {
+        console.log(url);
+        if (result) setUrl(result.link);
+      })
+      .catch((e) => console.error(e));
+  }, []);
+
+  if (url) {
+    return <embed src={url} />;
+  } else {
+    return <p>loading...</p>;
+  }
+}
+
+function App() {
+  return (
+    <div>
+      {new Array(8).fill(0).map((_, i) => (
+        <Image key={i} />
+      ))}
+    </div>
+  );
+}
+
+export default App;
